@@ -1,4 +1,4 @@
-name: Build Android APK (Chapter 2)
+name: Build Android APK (Chapter 2 Version 2)
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
 
     - name: Create Cordova Project
       run: |
-        # Жестко прописываем уникальный ID с двойкой для новой карточки!
+        # Жестко создаем проект со второй версией и ID с двойкой
         cordova create cordova_app com.myrunplay.mayumsyka2 MayUmshka2
         rm -rf cordova_app/www/*
         cp -R www/* cordova_app/www/
@@ -40,7 +40,8 @@ jobs:
     - name: Build Android Release APK
       run: |
         cd cordova_app
-        cordova build android --release --no-telemetry -- --packageType=apk
+        # ПРИНУДИТЕЛЬНО выставляем versionCode=2 и versionName=2.0.0, чтобы сбросить ошибку RuStore!
+        cordova build android --release --no-telemetry -- --packageType=apk --versionCode=2 --versionName=2.0.0
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
 
@@ -49,11 +50,10 @@ jobs:
         keytool -genkey -v -keystore my-release-key.jks -alias game_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mysecretpassword123 -keypass mysecretpassword123 -dname "CN=MayUmshka2, O=Developer, C=RU"
         APK_PATH=$(find cordova_app/platforms/android/app/build/outputs/apk/ -name "*release*.apk" | head -n 1)
         APKSIGNER_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "apksigner" | sort -V | tail -n 1)
-        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_Official_Release.apk $APK_PATH
+        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_V2_Ready.apk $APK_PATH
 
     - name: Upload Finished Signed APK
       uses: actions/upload-artifact@v4
       with:
         name: RuStore-Ready-APK
-        path: MayUmshka2_Official_Release.apk
-
+        path: MayUmshka2_V2_Ready.apk
