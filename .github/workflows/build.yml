@@ -28,7 +28,7 @@ jobs:
 
     - name: Create Cordova Project
       run: |
-        # Создаем проект с ID и Названием строго для Главы 2!
+        # Жестко прописываем уникальный ID с двойкой для новой карточки!
         cordova create cordova_app com.myrunplay.mayumsyka2 MayUmshka2
         rm -rf cordova_app/www/*
         cp -R www/* cordova_app/www/
@@ -40,28 +40,20 @@ jobs:
     - name: Build Android Release APK
       run: |
         cd cordova_app
-        # Принудительно заставляем выдать именно APK-файл
         cordova build android --release --no-telemetry -- --packageType=apk
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
 
     - name: Automatically Sign APK via apksigner (V2/V3)
       run: |
-        # 1. Генерируем новый цифровой ключ автора на сервере
         keytool -genkey -v -keystore my-release-key.jks -alias game_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mysecretpassword123 -keypass mysecretpassword123 -dname "CN=MayUmshka2, O=Developer, C=RU"
-        
-        # 2. Находим точный путь к созданному файлу
         APK_PATH=$(find cordova_app/platforms/android/app/build/outputs/apk/ -name "*release*.apk" | head -n 1)
-        
-        # 3. Находим утилиту apksigner в системе
         APKSIGNER_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "apksigner" | sort -V | tail -n 1)
-        echo "Using apksigner at: $APKSIGNER_PATH"
-        
-        # 4. Профессионально подписываем файл по схемам V2 и V3
-        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_RuStore_Ready.apk $APK_PATH
+        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_Official_Release.apk $APK_PATH
 
     - name: Upload Finished Signed APK
       uses: actions/upload-artifact@v4
       with:
         name: RuStore-Ready-APK
-        path: MayUmshka2_RuStore_Ready.apk
+        path: MayUmshka2_Official_Release.apk
+
