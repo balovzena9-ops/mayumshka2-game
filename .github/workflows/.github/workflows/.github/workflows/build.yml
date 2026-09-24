@@ -1,4 +1,4 @@
-name: Build Android APK (Pure WebView Fixed)
+name: Build Android APK (Chapter 2 Pure Sound Fix)
 
 on:
   push:
@@ -36,13 +36,12 @@ jobs:
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
 
-    - name: Force Android Audio Permissions
+    - name: Unlock Android WebView Audio Settings
       run: |
-        # Инъекция в настройки Android WebView, которая НАМЕРТВО разрешает стандартный HTML5 звук без изменения вашей игры!
+        # Сервер сам находит главный системный Java-файл приложения
         MAIN_ACTIVITY=$(find cordova_app/platforms/android/app/src/main/java/ -name "MainActivity.java")
-        echo "Found MainActivity at: $MAIN_ACTIVITY"
         
-        # Переписываем системный java-файл, чтобы AndroidWebView не блокировал тег new Audio()
+        # Переписываем его внутренности, чтобы Android WebView перестал блокировать тег new Audio()
         cat << 'EOF' > $MAIN_ACTIVITY
         package com.myrunplay.mayumsyka2;
 
@@ -55,13 +54,11 @@ jobs:
             @Override
             public void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
-                
-                // Включаем поддержку плагинов
                 if (customConfig == null) {
                     loadUrl(launchUrl);
                 }
                 
-                // Находим внутренний WebView телефона и снимаем ВСЕ блокировки со звука и памяти
+                // Главная магия: отключаем встроенную блокировку звуков в Android!
                 if (appView != null && appView.getEngine() != null) {
                     WebView webView = (WebView) appView.getEngine().getView();
                     WebSettings settings = webView.getSettings();
@@ -82,22 +79,16 @@ jobs:
 
     - name: Optimize and Sign APK via apksigner (V2/V3)
       run: |
-        # 1. Генерируем ключ автора
         keytool -genkey -v -keystore my-release-key.jks -alias game_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mysecretpassword123 -keypass mysecretpassword123 -dname "CN=MayUmshka2, O=Developer, C=RU"
-        
-        # 2. Находим исходный APK и утилиты Android SDK
-        ORIGINAL_APK=$(find cordova_app/platforms/android/app/build/outputs/apk/ -name "*release*.apk" | head -n 1)
+        APK_PATH=$(find cordova_app/platforms/android/app/build/outputs/apk/ -name "*release*.apk" | head -n 1)
         ZIPALIGN_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "zipalign" | sort -V | tail -n 1)
         APKSIGNER_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "apksigner" | sort -V | tail -n 1)
         
-        # 3. Выравниваем байты (Убирает ошибку "Что-то пошло не так" в RuStore на 100%)
         $ZIPALIGN_PATH -v 4 $ORIGINAL_APK ./aligned.apk
-        
-        # 4. Подписываем выровненный файл правильным apksigner (V2/V3)
-        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_Final_Release.apk ./aligned.apk
+        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_Final.apk ./aligned.apk
 
     - name: Upload Finished Signed APK
       uses: actions/upload-artifact@v4
       with:
         name: RuStore-Ready-APK
-        path: MayUmshka2_Final_Release.apk
+        path: MayUmshka2_Final.apk
