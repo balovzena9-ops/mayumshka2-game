@@ -1,4 +1,4 @@
-name: Build Android APK (Chapter 2 ZipAlign)
+name: Build Android APK (Chapter 2 Final Fixed)
 
 on:
   push:
@@ -32,6 +32,11 @@ jobs:
         rm -rf cordova_app/www/*
         cp -R www/* cordova_app/www/
         cd cordova_app
+        
+        # Добавляем плагины, которые заставят Android воспроизводить музыку из папки www БЕЗ изменения HTML кода!
+        cordova plugin add cordova-plugin-file --no-telemetry
+        cordova plugin add cordova-plugin-media --no-telemetry
+        
         cordova platform add android --no-telemetry
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
@@ -53,10 +58,10 @@ jobs:
         ZIPALIGN_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "zipalign" | sort -V | tail -n 1)
         APKSIGNER_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "apksigner" | sort -V | tail -n 1)
         
-        # 3. ПРИНУДИТЕЛЬНО выравниваем байты (Оптимизация для RuStore)
+        # 3. Выравниваем байты (Оптимизация для RuStore)
         $ZIPALIGN_PATH -v 4 $ORIGINAL_APK ./aligned.apk
         
-        # 4. Подписываем уже выровненный файл по схемам V2/V3
+        # 4. Подписываем выровненный файл по схемам V2/V3
         $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_Final_Release.apk ./aligned.apk
 
     - name: Upload Finished Signed APK
