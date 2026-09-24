@@ -1,4 +1,4 @@
-name: Build Android APK (Chapter 2 Version 2)
+name: Build Android APK (Chapter 2 ZipAlign)
 
 on:
   push:
@@ -28,7 +28,6 @@ jobs:
 
     - name: Create Cordova Project
       run: |
-        # Жестко создаем проект со второй версией и ID с двойкой
         cordova create cordova_app com.myrunplay.mayumsyka2 MayUmshka2
         rm -rf cordova_app/www/*
         cp -R www/* cordova_app/www/
@@ -40,20 +39,28 @@ jobs:
     - name: Build Android Release APK
       run: |
         cd cordova_app
-        # ПРИНУДИТЕЛЬНО выставляем versionCode=2 и versionName=2.0.0, чтобы сбросить ошибку RuStore!
         cordova build android --release --no-telemetry -- --packageType=apk --versionCode=2 --versionName=2.0.0
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
 
-    - name: Automatically Sign APK via apksigner (V2/V3)
+    - name: Optimize and Sign APK via apksigner
       run: |
+        # 1. Генерируем ключ автора
         keytool -genkey -v -keystore my-release-key.jks -alias game_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mysecretpassword123 -keypass mysecretpassword123 -dname "CN=MayUmshka2, O=Developer, C=RU"
-        APK_PATH=$(find cordova_app/platforms/android/app/build/outputs/apk/ -name "*release*.apk" | head -n 1)
+        
+        # 2. Находим исходный APK и утилиты Android SDK
+        ORIGINAL_APK=$(find cordova_app/platforms/android/app/build/outputs/apk/ -name "*release*.apk" | head -n 1)
+        ZIPALIGN_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "zipalign" | sort -V | tail -n 1)
         APKSIGNER_PATH=$(find /usr/local/lib/android/sdk/build-tools/ -name "apksigner" | sort -V | tail -n 1)
-        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_V2_Ready.apk $APK_PATH
+        
+        # 3. ПРИНУДИТЕЛЬНО выравниваем байты (Оптимизация для RuStore)
+        $ZIPALIGN_PATH -v 4 $ORIGINAL_APK ./aligned.apk
+        
+        # 4. Подписываем уже выровненный файл по схемам V2/V3
+        $APKSIGNER_PATH sign --ks my-release-key.jks --ks-key-alias game_alias --ks-pass pass:mysecretpassword123 --key-pass pass:mysecretpassword123 --out ./MayUmshka2_Final_Release.apk ./aligned.apk
 
     - name: Upload Finished Signed APK
       uses: actions/upload-artifact@v4
       with:
         name: RuStore-Ready-APK
-        path: MayUmshka2_V2_Ready.apk
+        path: MayUmshka2_Final_Release.apk
